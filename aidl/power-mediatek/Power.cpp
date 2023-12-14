@@ -118,43 +118,48 @@ ndk::ScopedAStatus Power::setMode(Mode type, bool enabled) {
 
 #ifdef MODE_EXT
     if (setDeviceSpecificMode(type, enabled)) {
+        LOG(VERBOSE) << "Device-specific mode handled successfully.";
         return ndk::ScopedAStatus::ok();
     }
 #endif
+
     switch (type) {
 #ifdef TAP_TO_WAKE_NODE
         case Mode::DOUBLE_TAP_TO_WAKE: {
+            LOG(VERBOSE) << "Handling DOUBLE_TAP_TO_WAKE mode.";
             ::android::base::WriteStringToFile(enabled ? "1" : "0", TAP_TO_WAKE_NODE, true);
             break;
         }
 #endif
         case Mode::LAUNCH: {
+            LOG(VERBOSE) << "Handling LAUNCH mode.";
             if (mLaunchHandle > 0) {
                 mPerf->LockRel(mLaunchHandle);
                 mLaunchHandle = 0;
             }
 
             if (enabled) {
-                mLaunchHandle =
-                        mPerf->CusLockHint(MTKPOWER_HINT_LAUNCH, kLaunchBoostDuration, getpid());
+                mLaunchHandle = mPerf->CusLockHint(MTKPOWER_HINT_LAUNCH, kLaunchBoostDuration, getpid());
+                LOG(VERBOSE) << "LAUNCH mode enabled with handle: " << mLaunchHandle;
             }
             break;
         }
         case Mode::INTERACTIVE: {
+            LOG(VERBOSE) << "Handling INTERACTIVE mode.";
             if (enabled) {
-                // Device is now in an interactive state,
-                // resume all previously performing hints.
                 mPerf->UserScnRestoreAll();
+                LOG(VERBOSE) << "Device in interactive state. Restoring all hints.";
             } else {
-                // Device is entering a non interactive state,
-                // disable all hints to save power.
                 mPerf->UserScnDisableAll();
+                LOG(VERBOSE) << "Device entering non-interactive state. Disabling all hints.";
             }
             break;
         }
         default:
+            LOG(ERROR) << "Unsupported mode: " << static_cast<int32_t>(type);
             break;
     }
+
     return ndk::ScopedAStatus::ok();
 }
 
